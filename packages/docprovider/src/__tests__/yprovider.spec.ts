@@ -61,6 +61,17 @@ jest.mock('y-websocket', () => ({
   }
 }));
 
+const createdModels: YFile[] = [];
+
+/**
+ * Create a shared model owned by the test suite, disposed after each test.
+ */
+function createModel(): YFile {
+  const model = new YFile();
+  createdModels.push(model);
+  return model;
+}
+
 async function waitForProviderConnect(
   provider: WebSocketProvider
 ): Promise<IMockWsProvider> {
@@ -77,8 +88,8 @@ async function waitForProviderConnect(
 function createProvider(
   options: { path?: string; model?: YFile } = {}
 ): WebSocketProvider {
-  const { path = 'test.ipynb', model = new YFile() } = options;
-  const translator = nullTranslator.load('test');
+  const { path = 'test.ipynb', model = createModel() } = options;
+  const trans = nullTranslator.load('test');
   const identity = {
     username: 'Joe Doe',
     display_name: 'Joe Doe',
@@ -94,11 +105,17 @@ function createProvider(
     format: 'text',
     model,
     user,
-    translator
+    translator: trans
   });
 }
 
 describe('@jupyter/docprovider', () => {
+  afterEach(() => {
+    while (createdModels.length) {
+      createdModels.pop()!.dispose();
+    }
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     (requestDocSession as jest.Mock).mockResolvedValue({
